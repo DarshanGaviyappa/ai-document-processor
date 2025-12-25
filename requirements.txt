@@ -1,0 +1,32 @@
+# PDF Processing
+pypdf2
+pdfplumber
+pillow
+
+# Web Scraping
+beautifulsoup4
+requests
+lxml
+
+# Document Conversion
+docling
+markitdown
+
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Frontend
+streamlit
+
+# AWS
+boto3
+
+# Azure (for enterprise service)
+azure-ai-formrecognizer
+azure-core
+
+# Utilities
+python-dotenv
+pandas
