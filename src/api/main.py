@@ -81,6 +81,17 @@ async def process_pdf(
         with open(temp_pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        # Check file size
+        file_size_mb = temp_pdf_path.stat().st_size / (1024 * 1024)
+        
+        # Azure has 4MB limit for free tier, auto-fallback to opensource for large files
+        if method == "enterprise" and file_size_mb > 4:
+            print(f"File too large for Azure ({file_size_mb:.2f}MB > 4MB), falling back to opensource")
+            method = "opensource"
+            fallback_message = f"File size ({file_size_mb:.2f}MB) exceeds Azure limit (4MB). Using open-source extraction instead."
+        else:
+            fallback_message = None
+        
         # Extract content based on method
         if method == "enterprise":
             extraction_result = extract_with_azure(str(temp_pdf_path))
@@ -98,10 +109,13 @@ async def process_pdf(
             conversion_result = convert_with_markitdown(str(temp_pdf_path))
         
         # Save markdown
+        # Save markdown
         md_filename = f"{temp_pdf_path.stem}_converted.md"
         md_path = temp_dir / md_filename
+        markdown_content = conversion_result.get("markdown", extraction_result.get("text", ""))
+
         with open(md_path, 'w', encoding='utf-8') as f:
-            f.write(conversion_result.get("markdown", extraction_result.get("text", "")))
+            f.write(markdown_content)
         
         # Upload to S3 if requested
         s3_result = None
@@ -113,6 +127,7 @@ async def process_pdf(
                 metadata={
                     'method': method,
                     'converter': converter,
+                    'file_size_mb': str(file_size_mb),
                     'processed_date': datetime.now().isoformat()
                 }
             )
@@ -120,7 +135,7 @@ async def process_pdf(
         # Clean up temp files
         temp_pdf_path.unlink()
         
-        return JSONResponse({
+        response_data = {
             "success": True,
             "extraction": {
                 "method": method,
@@ -133,8 +148,15 @@ async def process_pdf(
                 "markdown_length": len(conversion_result.get("markdown", ""))
             },
             "s3_upload": s3_result if upload_to_s3 else None,
-            "markdown_file": str(md_path)
-        })
+            "markdown_file": str(md_path),
+            "markdown_content": markdown_content,  # Add this line
+            "file_size_mb": round(file_size_mb, 2)
+        }
+        
+        if fallback_message:
+            response_data["warning"] = fallback_message
+        
+        return JSONResponse(response_data)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

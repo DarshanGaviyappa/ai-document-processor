@@ -4,6 +4,7 @@ Streamlit Frontend for AI Document Processor
 import streamlit as st
 import requests
 import json
+import os
 from datetime import datetime
 
 # Configure page
@@ -14,7 +15,7 @@ st.set_page_config(
 )
 
 # API URL
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # Title
 st.title("🤖 AI Document Processor")
@@ -106,9 +107,9 @@ with tab1:
                     st.markdown("---")
                     st.subheader("📝 Extracted Content (Markdown)")
                     
-                    # Read the markdown file
-                    markdown_file = result.get("markdown_file")
-                    if markdown_file:
+                    # Get markdown content from API response
+                    markdown_content = result.get("markdown_content", "")
+                    if markdown_content:
                         try:
                             with open(markdown_file, 'r', encoding='utf-8') as f:
                                 markdown_content = f.read()
